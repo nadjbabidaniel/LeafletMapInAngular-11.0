@@ -12,6 +12,8 @@ export class AppComponent implements OnInit {
 
 	map: L.Map;
 	geojson: L.GeoJSON;
+	info;
+	legend;
 
 	ngOnInit() {
 		
@@ -26,27 +28,47 @@ export class AppComponent implements OnInit {
 		}).addTo(this.map);
 
 
-		let info;
+		
 
-		info = new L.Control();
+		this.info = new L.Control();
 
-		info.onAdd = function (map) {
+		this.info.onAdd = function (map) {
 			this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
 			this.update();
 			return this._div;
 		};
 
 		// method that we will use to update the control based on feature properties passed
-		info.update = function (props) {
+		this.info.update = function (props) {
 			this._div.innerHTML = '<h4>US Population Density</h4>' +  (props ?
 				'<b>' + props.name + '</b><br />' + props.density + ' people / mi<sup>2</sup>'
 				: 'Hover over a state');
 		};
 
-		info.addTo(this.map);
+		this.info.addTo(this.map);
+
+		this.legend = new L.Control({position: 'bottomright'});
+
+		this.legend.onAdd = function (map) {
+
+			var div = L.DomUtil.create('div', 'info legend'),
+				grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+				labels = [];
+
+			// loop through our density intervals and generate a label with a colored square for each interval
+			for (var i = 0; i < grades.length; i++) {
+				div.innerHTML +=
+					'<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+					grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+			}
+
+			return div;
+		};
+
+		this.legend.addTo(this.map);
 
 
-		this.geojson = L.geoJSON(statesData, {style: style, onEachFeature: onEachFeature}).addTo(this.map);					
+		this.geojson = L.geoJSON(statesData, {style: style, onEachFeature: onEachFeature.bind(this)}).addTo(this.map);					
 		
 		
 		
@@ -55,14 +77,16 @@ export class AppComponent implements OnInit {
 
 function onEachFeature(feature, layer) {
     layer.on({
-        mouseover: highlightFeature,
-        mouseout: resetHighlight,
-        click: zoomToFeature
+        mouseover: highlightFeature.bind(this),
+        mouseout: resetHighlight.bind(this),
+        click: zoomToFeature.bind(this)
     });
 }
 
 function resetHighlight(e) {
 	this.geojson.resetStyle(e.target);
+
+	this.info.update();
 	
 }
 
@@ -83,6 +107,8 @@ function highlightFeature(e) {
 	if (!L.Browser.ie && !L.Browser.edge) {
 		layer.bringToFront();
 	}
+
+	this.info.update(layer.feature.properties);
 
 }
 
